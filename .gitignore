@@ -1,0 +1,11 @@
+.DS_Store
+*.pyc
+*.swp
+*.swo
+*~
+__pycache__/
+.venv/
+.env
+.envrc
+docs/site/
+docs/public/

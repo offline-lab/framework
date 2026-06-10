@@ -1,0 +1,11 @@
+#!/usr/bin/env bash
+# Source this file to configure FRAMEWORK_LIB_PATH for local development.
+# Works from either the framework repo root or the builder repo root:
+#   source bin/dev-setup          (from framework/)
+#   source framework/bin/dev-setup  (from builder/)
+
+_dev_setup_dir="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+export FRAMEWORK_LIB_PATH="${_dev_setup_dir}/../src/library"
+unset _dev_setup_dir
+
+printf 'FRAMEWORK_LIB_PATH=%s\n' "${FRAMEWORK_LIB_PATH}"

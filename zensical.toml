@@ -1,0 +1,119 @@
+[project]
+
+site_name = "Offline Lab Framework"
+site_description = "Bash utility library and device management CLI for Offline Lab OS."
+site_author = "Offline Lab"
+site_url = "https://framework.offline-lab.com"
+home_page_url = "https://offline-lab.com"
+
+copyright = "Copyright &copy; 2026 Offline Lab"
+
+repo_name = "offline-lab/framework"
+repo_url  = "https://github.com/offline-lab/framework"
+edit_uri  = "https://github.com/offline-lab/framework/edit/main/docs/"
+docs_dir = "docs"
+site_dir = "docs/public"
+
+nav = [
+  { "Overview" = "index.md" },
+  { "boxctl" = [
+    { "Overview" = "commands.md" },
+    { "config" = "boxctl/config.md" },
+    { "confext" = "boxctl/confext.md" },
+    { "diagnose" = "boxctl/diagnose.md" },
+    { "firewall" = "boxctl/firewall.md" },
+    { "logs" = "boxctl/logs.md" },
+    { "net" = "boxctl/net.md" },
+    { "power" = "boxctl/power.md" },
+    { "reboot" = "boxctl/reboot.md" },
+    { "rollback" = "boxctl/rollback.md" },
+    { "screen" = "boxctl/screen.md" },
+    { "service" = "boxctl/service.md" },
+    { "status" = "boxctl/status.md" },
+    { "sysext" = "boxctl/sysext.md" },
+    { "update" = "boxctl/update.md" },
+  ]},
+  { "Reference" = [
+    { "Variables" = "var.md" },
+    { "Strings" = "string.md" },
+    { "Arrays" = "array.md" },
+    { "Arguments" = "arguments.md" },
+    { "Filesystem" = "fs.md" },
+    { "Files" = "files.md" },
+    { "Network" = "net.md" },
+    { "WiFi" = "wifi.md" },
+    { "SSH" = "ssh.md" },
+    { "SSL" = "ssl.md" },
+    { "Process" = "proc.md" },
+    { "Dependencies" = "depends.md" },
+    { "Cache" = "cache.md" },
+    { "Time" = "time.md" },
+    { "Credentials" = "credentials.md" },
+    { "Interaction" = "interact.md" },
+    { "Prettytable" = "prettytable.md" },
+    { "System" = "system.md" },
+    { "Config" = "config.md" },
+    { "Clock" = "clock.md" },
+    { "Resources" = "resources.md" },
+    { "Zram" = "zram.md" },
+    { "Firewall" = "fw.md" },
+    { "Sysext" = "sysext.md" },
+    { "Confext" = "confext.md" },
+    { "Health" = "health.md" },
+    { "Power" = "power.md" },
+    { "RAUC" = "rauc.md" },
+  ]},
+  { "Internals" = [
+    { "Core" = "core.md" },
+    { "Import" = "import.md" },
+    { "Logging" = "logging.md" },
+    { "Exit" = "exit.md" },
+    { "Debug" = "debug.md" },
+    { "Sanity" = "sanity.md" },
+  ]},
+]
+
+[project.theme]
+language = "en"
+custom_dir = "docs/overrides"
+features = [
+    "content.code.copy",
+    "content.tooltips",
+    "navigation.footer",
+    "navigation.instant",
+    "navigation.instant.prefetch",
+    "navigation.path",
+    "navigation.sections",
+    "navigation.top",
+    "navigation.tracking",
+    "search.highlight",
+    "announce.dismiss",
+]
+
+[[project.theme.palette]]
+scheme = "default"
+toggle.icon = "lucide/sun"
+toggle.name = "Switch to dark mode"
+
+[[project.theme.palette]]
+scheme = "slate"
+toggle.icon = "lucide/moon"
+toggle.name = "Switch to light mode"
+
+[[project.extra.social]]
+icon = "fontawesome/brands/github"
+link = "https://github.com/offline-lab"
+
+[project.markdown_extensions.admonition]
+[project.markdown_extensions.attr_list]
+[project.markdown_extensions.def_list]
+[project.markdown_extensions.toc]
+permalink = true
+[project.markdown_extensions.pymdownx.betterem]
+[project.markdown_extensions.pymdownx.highlight]
+anchor_linenums = true
+line_spans = "__span"
+pygments_lang_class = true
+[project.markdown_extensions.pymdownx.superfences]
+[project.markdown_extensions.pymdownx.tasklist]
+custom_checkbox = true
