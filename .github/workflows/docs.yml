@@ -4,11 +4,10 @@ on:
   push:
     branches: [main]
     paths:
-      - "library/**"
+      - "src/**"
       - "bin/**"
       - "docs/**"
       - "zensical.toml"
-      - "bin/docs.py"
   workflow_dispatch:
 
 permissions:
@@ -29,9 +28,13 @@ jobs:
 
       - name: Set up uv
         uses: astral-sh/setup-uv@v5
+        with:
+          enable-cache: false
 
       - name: Configure Pages
         uses: actions/configure-pages@v5
+        with:
+          enablement: true
 
       - name: Regenerate API docs
         run: python3 bin/generate-docs
