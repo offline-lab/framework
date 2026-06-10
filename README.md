@@ -1,6 +1,6 @@
 # offline-lab-framework
 
-Bash utility library and device management CLI for the [Offline Lab OS](https://docs.offline-lab.com).
+Bash utility library and device management CLI for the [Offline Lab OS](https://offline-lab.com).
 
 API reference: [framework.offline-lab.com](https://framework.offline-lab.com)
 

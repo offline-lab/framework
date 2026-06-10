@@ -2,7 +2,7 @@
 
 The offline-lab-framework is a bash utility library installed at `/usr/lib/framework/` on the Offline Lab OS. Scripts load it with `source framework || exit 1`.
 
-See the [Builder documentation](https://docs.offline-lab.com/builder/) for buildroot packaging details.
+See the [Builder documentation](https://offline-lab.com/docs/) for buildroot packaging details.
 
 ## CLI
 

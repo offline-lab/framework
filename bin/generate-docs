@@ -32,6 +32,7 @@ from pathlib import Path
 
 # ─── Data model ───────────────────────────────────────────────────────────────
 
+
 @dataclass
 class Function:
     name: str
@@ -54,20 +55,20 @@ class Module:
 class Command:
     name: str
     usage: str
-    description: str        # first descriptive sentence from usage block
-    imports: list[str]      # library modules imported by this command
+    description: str  # first descriptive sentence from usage block
+    imports: list[str]  # library modules imported by this command
 
 
 # ─── Extraction ───────────────────────────────────────────────────────────────
 
-_HASH_BANNER = re.compile(r'^#{40,}')
-_FUNCTION_DEF = re.compile(r'^function\s+([\w:]+)\(\)\s*\{')
+_HASH_BANNER = re.compile(r"^#{40,}")
+_FUNCTION_DEF = re.compile(r"^function\s+([\w:]+)\(\)\s*\{")
 _LOG_TRACE = re.compile(r'log::trace\s+"\$\{FUNCNAME\[0\]\}:\s*([^"]+)"')
 _ARITY_NE = re.compile(r'\[\[\s+"\$\{#\}"\s+-ne\s+(\d+)\s+\]\]')
 _ARITY_LT = re.compile(r'\[\[\s+"\$\{#\}"\s+-lt\s+(\d+)\s+\]\]')
 _ARITY_EQ = re.compile(r'\[\[\s+"\$\{#\}"\s+-eq\s+0\s+\]\]')
-_SECTION_INNER = re.compile(r'^#+\s*(?:#{3,})?\s*(.*?)\s*(?:#{3,})?$')
-_REQUIRES_INTERNET = re.compile(r'#\s*REQUIRES\s+INTERNET')
+_SECTION_INNER = re.compile(r"^#+\s*(?:#{3,})?\s*(.*?)\s*(?:#{3,})?$")
+_REQUIRES_INTERNET = re.compile(r"#\s*REQUIRES\s+INTERNET")
 
 
 def _extract_module_description(lines: list[str]) -> str:
@@ -77,7 +78,11 @@ def _extract_module_description(lines: list[str]) -> str:
     for line in lines:
         stripped = line.rstrip()
 
-        if stripped.startswith('#!') or stripped.startswith('# vi:') or stripped.startswith('# shellcheck'):
+        if (
+            stripped.startswith("#!")
+            or stripped.startswith("# vi:")
+            or stripped.startswith("# shellcheck")
+        ):
             continue
 
         if _FUNCTION_DEF.match(stripped):
@@ -86,29 +91,34 @@ def _extract_module_description(lines: list[str]) -> str:
         if _HASH_BANNER.match(stripped):
             if desc_lines:
                 break
+
             continue
 
-        if stripped.startswith('#'):
-            text = stripped.lstrip('#').strip()
-            if re.search(r'#{10,}', stripped) or re.search(r'\s+#+\s*$', text):
+        if stripped.startswith("#"):
+            text = stripped.lstrip("#").strip()
+
+            if re.search(r"#{10,}", stripped) or re.search(r"\s+#+\s*$", text):
                 continue
+
             if text:
                 desc_lines.append(text)
                 past_header = True
-        elif past_header and stripped == '':
+        elif past_header and stripped == "":
             if desc_lines:
                 break
 
-    return ' '.join(desc_lines) if desc_lines else ''
+    return " ".join(desc_lines) if desc_lines else ""
 
 
 def _extract_section(lines: list[str], idx: int) -> str:
     if idx >= len(lines):
-        return ''
+        return ""
+
     if not _HASH_BANNER.match(lines[idx].rstrip()):
-        return ''
+        return ""
 
     banner_end = idx
+
     for i in range(idx, min(idx + 4, len(lines))):
         if _HASH_BANNER.match(lines[i].rstrip()):
             banner_end = i
@@ -117,83 +127,94 @@ def _extract_section(lines: list[str], idx: int) -> str:
 
     for i in range(idx, banner_end + 1):
         raw = lines[i].strip()
-        raw = raw.strip('#').strip()
-        if re.search(r'[A-Za-z]', raw):
-            raw = re.sub(r'\s+#+\s*$', '', raw).strip()
-            if raw and not re.search(r'#{3,}', raw):
+        raw = raw.strip("#").strip()
+
+        if re.search(r"[A-Za-z]", raw):
+            raw = re.sub(r"\s+#+\s*$", "", raw).strip()
+
+            if raw and not re.search(r"#{3,}", raw):
                 return raw
 
     next_idx = banner_end + 1
+
     if next_idx < len(lines):
         raw = lines[next_idx].strip()
-        if raw.startswith('#') and not _HASH_BANNER.match(raw):
-            text = raw.lstrip('#').strip()
+
+        if raw.startswith("#") and not _HASH_BANNER.match(raw):
+            text = raw.lstrip("#").strip()
+
             if text:
                 return text
 
-    return ''
+    return ""
 
 
 def _extract_comment_block(lines: list[str], func_line_idx: int) -> str:
     end = func_line_idx - 1
 
-    while end >= 0 and lines[end].strip() == '':
+    while end >= 0 and lines[end].strip() == "":
         end -= 1
 
-    if end < 0 or not lines[end].strip().startswith('#'):
-        return ''
+    if end < 0 or not lines[end].strip().startswith("#"):
+        return ""
 
     comment_lines: list[str] = []
     i = end
-    while i >= 0 and lines[i].strip().startswith('#'):
-        text = lines[i].rstrip().lstrip('#').strip()
+
+    while i >= 0 and lines[i].strip().startswith("#"):
+        text = lines[i].rstrip().lstrip("#").strip()
         comment_lines.insert(0, text)
         i -= 1
 
-    while comment_lines and comment_lines[0] == '':
+    while comment_lines and comment_lines[0] == "":
         comment_lines.pop(0)
-    while comment_lines and comment_lines[-1] == '':
+
+    while comment_lines and comment_lines[-1] == "":
         comment_lines.pop()
 
-    comment_lines = [
-        l for l in comment_lines
-        if not re.search(r'\s{5,}#\s*$', l)
-    ]
+    comment_lines = [l for l in comment_lines if not re.search(r"\s{5,}#\s*$", l)]
 
-    return '\n'.join(comment_lines).strip()
+    return "\n".join(comment_lines).strip()
 
 
 def _extract_trace_and_arity(lines: list[str], func_line_idx: int) -> tuple[str, str]:
-    trace = ''
-    arity = ''
+    trace = ""
+    arity = ""
     brace_depth = 0
 
     for i in range(func_line_idx, min(func_line_idx + 30, len(lines))):
         line = lines[i]
 
-        brace_depth += line.count('{') - line.count('}')
+        brace_depth += line.count("{") - line.count("}")
+
         if i > func_line_idx and brace_depth <= 0:
             break
 
         if not trace:
             m = _LOG_TRACE.search(line)
+
             if m:
                 msg = m.group(1).strip()
-                msg = re.sub(r'\$\{[^}]+\}', '<value>', msg)
+                msg = re.sub(r"\$\{[^}]+\}", "<value>", msg)
                 trace = msg
 
         if not arity:
             m = _ARITY_NE.search(line)
+
             if m:
-                arity = f'exactly {m.group(1)} argument(s)'
+                arity = f"exactly {m.group(1)} argument(s)"
+
                 continue
             m = _ARITY_LT.search(line)
+
             if m:
                 n = int(m.group(1))
-                arity = f'at least {n} argument(s)'
+                arity = f"at least {n} argument(s)"
+
                 continue
+
             if _ARITY_EQ.search(line):
-                arity = 'at least 1 argument'
+                arity = "at least 1 argument"
 
     return trace, arity
 
@@ -204,7 +225,7 @@ def parse_library_file(path: Path) -> Module:
 
     description = _extract_module_description(lines)
     functions: list[Function] = []
-    current_section = ''
+    current_section = ""
     internet_block = False
 
     for idx, line in enumerate(lines):
@@ -212,41 +233,50 @@ def parse_library_file(path: Path) -> Module:
 
         if _HASH_BANNER.match(stripped):
             sec = _extract_section(lines, idx)
+
             if sec:
                 current_section = sec
             internet_block = False
+
             continue
 
-        _single_header = re.match(r'^#\s+(.+?)\s{5,}#\s*$', stripped)
+        _single_header = re.match(r"^#\s+(.+?)\s{5,}#\s*$", stripped)
+
         if _single_header:
             current_section = _single_header.group(1).strip()
+
             continue
 
         if _REQUIRES_INTERNET.search(stripped):
             internet_block = True
+
             continue
 
         m = _FUNCTION_DEF.match(stripped)
+
         if not m:
             continue
 
         fn_name = m.group(1)
 
-        next_code = [l.strip() for l in lines[idx + 1:idx + 5] if l.strip()]
-        if next_code and next_code[0].startswith('}'):
+        next_code = [l.strip() for l in lines[idx + 1 : idx + 5] if l.strip()]
+
+        if next_code and next_code[0].startswith("}"):
             continue
 
         comment = _extract_comment_block(lines, idx)
         trace, arity = _extract_trace_and_arity(lines, idx)
 
-        functions.append(Function(
-            name=fn_name,
-            comment=comment,
-            trace_msg=trace,
-            arity_check=arity,
-            section=current_section,
-            requires_internet=internet_block,
-        ))
+        functions.append(
+            Function(
+                name=fn_name,
+                comment=comment,
+                trace_msg=trace,
+                arity_check=arity,
+                section=current_section,
+                requires_internet=internet_block,
+            )
+        )
 
         internet_block = False
 
@@ -272,8 +302,9 @@ def _extract_command_description(usage: str) -> str:
     for line in lines:
         stripped = line.strip()
 
-        if stripped.lower().startswith('usage:'):
+        if stripped.lower().startswith("usage:"):
             past_usage = True
+
             continue
 
         if not past_usage:
@@ -281,47 +312,56 @@ def _extract_command_description(usage: str) -> str:
 
         if not stripped:
             if collecting:
-                break       # blank line ends the description paragraph
+                break  # blank line ends the description paragraph
+
             continue
 
-        if stripped.endswith(':'):          # section header — stop
+        if stripped.endswith(":"):  # section header — stop
             break
-        if '   ' in line:                  # table-style entry — stop
+
+        if "   " in line:  # table-style entry — stop
             if collecting:
                 break
+
             continue
-        if re.match(r'^\s+-', line):       # option flag — stop
+
+        if re.match(r"^\s+-", line):  # option flag — stop
             if collecting:
                 break
+
             continue
 
         collecting.append(stripped)
-        if '.' in stripped:
+
+        if "." in stripped:
             break
 
     if not collecting:
-        return ''
+        return ""
 
-    full = ' '.join(collecting)
-    sentence = full.split('.')[0]
-    return sentence + '.'
+    full = " ".join(collecting)
+    sentence = full.split(".")[0]
+
+    return sentence + "."
 
 
 def parse_command_script(path: Path) -> Command | None:
-    name = path.name.removeprefix('boxctl-')
-    if name in ('su', 'help'):
+    name = path.name.removeprefix("boxctl-")
+
+    if name in ("su", "help"):
         return None
 
     content = path.read_text()
 
-    m = re.search(r'::usage\(\).*?<<\s*\'?EOF\'?\n(.*?)\nEOF', content, re.DOTALL)
+    m = re.search(r"::usage\(\).*?<<\s*\'?EOF\'?\n(.*?)\nEOF", content, re.DOTALL)
+
     if not m:
         return None
 
     usage = m.group(1).rstrip()
     description = _extract_command_description(usage)
 
-    imp = re.search(r'^import\s+(.+)$', content, re.MULTILINE)
+    imp = re.search(r"^import\s+(.+)$", content, re.MULTILINE)
     imports = imp.group(1).split() if imp else []
 
     return Command(name=name, usage=usage, description=description, imports=imports)
@@ -329,385 +369,529 @@ def parse_command_script(path: Path) -> Command | None:
 
 # ─── Rendering ────────────────────────────────────────────────────────────────
 
-_INTERNAL_MODULES = {'core', 'import', 'logging', 'exit', 'debug', 'sanity'}
+_INTERNAL_MODULES = {"core", "import", "logging", "exit", "debug", "sanity"}
 
 _MODULE_TITLES = {
-    'var':         'Variables — type and value checks',
-    'string':      'Strings — manipulation and comparison',
-    'array':       'Arrays — operations and predicates',
-    'fs':          'Filesystem — path and file checks',
-    'files':       'Files — merge and deduplication',
-    'arguments':   'Arguments — CLI flag parsing',
-    'depends':     'Dependencies — tool availability checks',
-    'interact':    'Interaction — prompts and user input',
-    'proc':        'Process — command execution and output handling',
-    'time':        'Time — formatting and timestamps',
-    'cache':       'Cache — key/value store with TTL',
-    'net':         'Network — IP, FQDN, email validation',
-    'credentials': 'Credentials — random username and password generation',
-    'ssh':         'SSH — key generation and agent management',
-    'ssl':         'SSL — certificate and key validation',
-    'system':      'System — privilege escalation and sudo keepalive',
-    'config':      'Config — /data/config key/value store',
-    'health':      'Health — system status checks',
-    'rauc':        'RAUC — A/B OTA update operations',
-    'wifi':        'WiFi — wpa_supplicant management',
-    'prettytable': 'Prettytable — Unicode terminal table output',
-    'clock':       'Clock — clock and RTC management',
-    'resources':   'Resources — CPU, memory, disk monitoring',
-    'zram':        'Zram — zram compression device management',
-    'fw':          'Firewall — iptables helpers',
-    'power':       'Power — power management',
-    'sysext':      'Sysext — systemd sysext operations',
-    'confext':     'Confext — configuration extension management',
-    'sanity':      'Sanity — pre-execution checks',
-    'core':        'Core — bootstrap and module loader',
-    'import':      'Import — module loading and circular import prevention',
-    'logging':     'Logging — leveled output to stderr',
-    'exit':        'Exit — script termination helpers',
-    'debug':       'Debug — stack trace and error handling',
+    "var": "Variables — type and value checks",
+    "string": "Strings — manipulation and comparison",
+    "array": "Arrays — operations and predicates",
+    "fs": "Filesystem — path and file checks",
+    "files": "Files — merge and deduplication",
+    "arguments": "Arguments — CLI flag parsing",
+    "depends": "Dependencies — tool availability checks",
+    "interact": "Interaction — prompts and user input",
+    "proc": "Process — command execution and output handling",
+    "time": "Time — formatting and timestamps",
+    "cache": "Cache — key/value store with TTL",
+    "net": "Network — IP, FQDN, email validation",
+    "credentials": "Credentials — random username and password generation",
+    "ssh": "SSH — key generation and agent management",
+    "ssl": "SSL — certificate and key validation",
+    "system": "System — privilege escalation and sudo keepalive",
+    "config": "Config — /data/config key/value store",
+    "health": "Health — system status checks",
+    "rauc": "RAUC — A/B OTA update operations",
+    "wifi": "WiFi — wpa_supplicant management",
+    "prettytable": "Prettytable — Unicode terminal table output",
+    "clock": "Clock — clock and RTC management",
+    "resources": "Resources — CPU, memory, disk monitoring",
+    "zram": "Zram — zram compression device management",
+    "fw": "Firewall — iptables helpers",
+    "power": "Power — power management",
+    "sysext": "Sysext — systemd sysext operations",
+    "confext": "Confext — configuration extension management",
+    "sanity": "Sanity — pre-execution checks",
+    "core": "Core — bootstrap and module loader",
+    "import": "Import — module loading and circular import prevention",
+    "logging": "Logging — leveled output to stderr",
+    "exit": "Exit — script termination helpers",
+    "debug": "Debug — stack trace and error handling",
 }
 
 
-def render_module(module: Module, source_prefix: str = 'library/') -> str:
+def render_module(module: Module, source_prefix: str = "library/") -> str:
     title = _MODULE_TITLES.get(module.name, module.name)
     lines: list[str] = []
 
-    lines.append(f'# {title}')
-    lines.append('')
-    lines.append(f'**Source:** `{source_prefix}{module.name}.sh`')
-    lines.append('')
+    lines.append(f"# {title}")
+    lines.append("")
+    lines.append(f"**Source:** `{source_prefix}{module.name}.sh`")
+    lines.append("")
 
     if module.description:
         lines.append(module.description)
-        lines.append('')
+        lines.append("")
 
     lines.append('!!! note "Return codes"')
-    lines.append('    All functions return `0` on success, `1` on failure, `2` on wrong argument count.')
-    lines.append('')
+    lines.append(
+        "    All functions return `0` on success, `1` on failure, `2` on wrong argument count."
+    )
+    lines.append("")
 
     if not module.functions:
-        lines.append('*No public functions.*')
-        return '\n'.join(lines)
+        lines.append("*No public functions.*")
+
+        return "\n".join(lines)
 
     sections: dict[str, list[Function]] = {}
+
     for fn in module.functions:
         sections.setdefault(fn.section, []).append(fn)
 
     for section_name, fns in sections.items():
-        if section_name and not section_name.startswith('function ') and len(section_name) < 80:
-            lines.append(f'## {section_name}')
-            lines.append('')
+        if (
+            section_name
+            and not section_name.startswith("function ")
+            and len(section_name) < 80
+        ):
+            lines.append(f"## {section_name}")
+            lines.append("")
 
         for fn in fns:
-            lines.append(f'### `{fn.name}`')
-            lines.append('')
+            lines.append(f"### `{fn.name}`")
+            lines.append("")
 
             if fn.requires_internet:
                 lines.append('!!! warning "Requires internet"')
-                lines.append('    This function makes a network connection.')
-                lines.append('')
+                lines.append("    This function makes a network connection.")
+                lines.append("")
 
             if fn.trace_msg:
-                lines.append(f'> {fn.trace_msg.capitalize()}')
-                lines.append('')
+                lines.append(f"> {fn.trace_msg.capitalize()}")
+                lines.append("")
 
-            comment_useful = (
-                fn.comment
-                and fn.comment.lower() != fn.trace_msg.lower()
-            )
+            comment_useful = fn.comment and fn.comment.lower() != fn.trace_msg.lower()
+
             if comment_useful:
                 desc_words = set(module.description.lower().split())
                 comment_words = set(fn.comment.lower().split())
                 overlap = len(comment_words & desc_words)
+
                 if overlap < len(comment_words) * 0.7:
                     for cline in fn.comment.splitlines():
                         if cline:
                             lines.append(cline)
-                    lines.append('')
+                    lines.append("")
 
             if fn.arity_check:
-                lines.append(f'**Arguments:** {fn.arity_check}')
-                lines.append('')
+                lines.append(f"**Arguments:** {fn.arity_check}")
+                lines.append("")
 
-            lines.append('---')
-            lines.append('')
+            lines.append("---")
+            lines.append("")
 
-    return '\n'.join(lines)
+    return "\n".join(lines)
 
 
 def render_command_page(cmd: Command) -> str:
     """Render a full page for a single boxctl subcommand."""
     lines: list[str] = []
-    lines.append(f'# boxctl {cmd.name}')
-    lines.append('')
+    lines.append(f"# boxctl {cmd.name}")
+    lines.append("")
 
     if cmd.description:
         lines.append(cmd.description)
-        lines.append('')
+        lines.append("")
 
-    lines.append('## Usage')
-    lines.append('')
-    lines.append('```')
+    lines.append("## Usage")
+    lines.append("")
+    lines.append("```")
     lines.append(cmd.usage.strip())
-    lines.append('```')
-    lines.append('')
+    lines.append("```")
+    lines.append("")
 
     if cmd.imports:
-        lines.append('## Library modules')
-        lines.append('')
-        links = ', '.join(
-            f'[`{mod}`](../{mod}.md)' for mod in cmd.imports
-        )
-        lines.append(f'Uses: {links}')
-        lines.append('')
+        lines.append("## Library modules")
+        lines.append("")
+        links = ", ".join(f"[`{mod}`](../{mod}.md)" for mod in cmd.imports)
+        lines.append(f"Uses: {links}")
+        lines.append("")
 
-    return '\n'.join(lines)
+    return "\n".join(lines)
 
 
 def render_commands(commands: list[Command]) -> str:
     """Render the boxctl overview page with all commands as a quick reference."""
     lines: list[str] = []
-    lines.append('# boxctl — Command Reference')
-    lines.append('')
-    lines.append('`boxctl` is the device management CLI installed on the Offline Lab OS.')
-    lines.append('Run `boxctl help` or `boxctl <command> --help` for interactive help.')
-    lines.append('')
-
-    lines.append('| Command | Description |')
-    lines.append('|---|---|')
-    for cmd in sorted(commands, key=lambda c: c.name):
-        lines.append(f'| [`boxctl {cmd.name}`]({cmd.name}.md) | {cmd.description} |')
-    lines.append('')
-    lines.append('---')
-    lines.append('')
-
-    for cmd in sorted(commands, key=lambda c: c.name):
-        lines.append(f'## [`boxctl {cmd.name}`]({cmd.name}.md)')
-        lines.append('')
-        lines.append('```')
-        lines.append(cmd.usage.strip())
-        lines.append('```')
-        lines.append('')
-
-    return '\n'.join(lines)
-
-
-def render_index(modules: list[Module], commands: list[Command], builder_url: str = 'https://docs.offline-lab.com/builder/') -> str:
-    lines: list[str] = []
-    lines.append('# Framework — API Reference')
-    lines.append('')
+    lines.append("# boxctl — Command Reference")
+    lines.append("")
     lines.append(
-        'The offline-lab-framework is a bash utility library installed at `/usr/lib/framework/` '
-        'on the Offline Lab OS. Scripts load it with `source framework || exit 1`.'
+        "`boxctl` is the device management CLI installed on the Offline Lab OS."
     )
-    lines.append('')
-    lines.append(f'See the [Builder documentation]({builder_url}) for buildroot packaging details.')
-    lines.append('')
+    lines.append("Run `boxctl help` or `boxctl <command> --help` for interactive help.")
+    lines.append("")
+
+    lines.append("| Command | Description |")
+    lines.append("|---|---|")
+
+    for cmd in sorted(commands, key=lambda c: c.name):
+        lines.append(f"| [`boxctl {cmd.name}`]({cmd.name}.md) | {cmd.description} |")
+    lines.append("")
+    lines.append("---")
+    lines.append("")
+
+    for cmd in sorted(commands, key=lambda c: c.name):
+        lines.append(f"## [`boxctl {cmd.name}`]({cmd.name}.md)")
+        lines.append("")
+        lines.append("```")
+        lines.append(cmd.usage.strip())
+        lines.append("```")
+        lines.append("")
+
+    return "\n".join(lines)
+
+
+def render_index(
+    modules: list[Module],
+    commands: list[Command],
+    builder_url: str = "https://offline-lab.com/dics/builder/",
+) -> str:
+    lines: list[str] = []
+    lines.append("# Framework — API Reference")
+    lines.append("")
+    lines.append(
+        "The offline-lab-framework is a bash utility library installed at `/usr/lib/framework/` "
+        "on the Offline Lab OS. Scripts load it with `source framework || exit 1`."
+    )
+    lines.append("")
+    lines.append(
+        f"See the [Builder documentation]({builder_url}) for buildroot packaging details."
+    )
+    lines.append("")
 
     if commands:
-        lines.append('## CLI')
-        lines.append('')
-        lines.append('`boxctl` is the device management CLI. Run `boxctl help` on the device for interactive help.')
-        lines.append('')
-        lines.append('| Command | Description |')
-        lines.append('|---|---|')
-        for cmd in sorted(commands, key=lambda c: c.name):
-            lines.append(f'| [`boxctl {cmd.name}`](boxctl/{cmd.name}.md) | {cmd.description} |')
-        lines.append('')
+        lines.append("## CLI")
+        lines.append("")
+        lines.append(
+            "`boxctl` is the device management CLI. Run `boxctl help` on the device for interactive help."
+        )
+        lines.append("")
+        lines.append("| Command | Description |")
+        lines.append("|---|---|")
 
-    utility = [m for m in modules if m.name not in _INTERNAL_MODULES and
-               m.name not in ('rauc', 'wifi', 'config', 'health', 'system', 'clock', 'resources', 'zram', 'fw', 'power', 'sysext', 'confext')]
-    os_specific = [m for m in modules if m.name in ('rauc', 'wifi', 'config', 'health', 'system', 'clock', 'resources', 'zram', 'fw', 'power', 'sysext', 'confext')]
+        for cmd in sorted(commands, key=lambda c: c.name):
+            lines.append(
+                f"| [`boxctl {cmd.name}`](boxctl/{cmd.name}.md) | {cmd.description} |"
+            )
+        lines.append("")
+
+    utility = [
+        m
+
+        for m in modules
+
+        if m.name not in _INTERNAL_MODULES
+        and m.name
+        not in (
+            "rauc",
+            "wifi",
+            "config",
+            "health",
+            "system",
+            "clock",
+            "resources",
+            "zram",
+            "fw",
+            "power",
+            "sysext",
+            "confext",
+        )
+    ]
+    os_specific = [
+        m
+
+        for m in modules
+
+        if m.name
+        in (
+            "rauc",
+            "wifi",
+            "config",
+            "health",
+            "system",
+            "clock",
+            "resources",
+            "zram",
+            "fw",
+            "power",
+            "sysext",
+            "confext",
+        )
+    ]
     internals = [m for m in modules if m.name in _INTERNAL_MODULES]
 
     def table(mods: list[Module]) -> list[str]:
-        rows = ['| Module | Description | Functions |', '|---|---|---|']
+        rows = ["| Module | Description | Functions |", "|---|---|---|"]
+
         for m in sorted(mods, key=lambda x: x.name):
             title = _MODULE_TITLES.get(m.name, m.name)
-            short = title.split(' — ', 1)[-1] if ' — ' in title else title
+            short = title.split(" — ", 1)[-1] if " — " in title else title
             count = len(m.functions)
-            rows.append(f'| [`{m.name}`]({m.name}.md) | {short} | {count} |')
+            rows.append(f"| [`{m.name}`]({m.name}.md) | {short} | {count} |")
+
         return rows
 
-    lines.append('## Utility modules')
-    lines.append('')
+    lines.append("## Utility modules")
+    lines.append("")
     lines.extend(table(utility))
-    lines.append('')
+    lines.append("")
 
-    lines.append('## OS-specific modules')
-    lines.append('')
+    lines.append("## OS-specific modules")
+    lines.append("")
     lines.extend(table(os_specific))
-    lines.append('')
+    lines.append("")
 
-    lines.append('## Framework internals')
-    lines.append('')
+    lines.append("## Framework internals")
+    lines.append("")
     lines.extend(table(internals))
-    lines.append('')
+    lines.append("")
 
-    return '\n'.join(lines)
+    return "\n".join(lines)
 
 
 # ─── Nav patch ────────────────────────────────────────────────────────────────
 
 _NAV_ORDER = [
-    'var', 'string', 'array', 'fs', 'net', 'depends', 'proc',
-    'interact', 'cache', 'time', 'credentials', 'files', 'arguments',
-    'prettytable', 'system', 'config', 'health', 'rauc', 'wifi',
-    'clock', 'resources', 'zram', 'fw', 'power', 'sysext', 'confext',
-    'ssh', 'ssl',
-    'core', 'import', 'logging', 'exit', 'debug', 'sanity',
+    "var",
+    "string",
+    "array",
+    "fs",
+    "net",
+    "depends",
+    "proc",
+    "interact",
+    "cache",
+    "time",
+    "credentials",
+    "files",
+    "arguments",
+    "prettytable",
+    "system",
+    "config",
+    "health",
+    "rauc",
+    "wifi",
+    "clock",
+    "resources",
+    "zram",
+    "fw",
+    "power",
+    "sysext",
+    "confext",
+    "ssh",
+    "ssl",
+    "core",
+    "import",
+    "logging",
+    "exit",
+    "debug",
+    "sanity",
 ]
 
 _NAV_LABELS = {
-    'var': 'Variables', 'string': 'Strings', 'array': 'Arrays',
-    'arguments': 'Arguments', 'fs': 'Filesystem', 'files': 'Files',
-    'net': 'Network', 'wifi': 'WiFi', 'ssh': 'SSH', 'ssl': 'SSL',
-    'proc': 'Process', 'depends': 'Dependencies', 'cache': 'Cache',
-    'time': 'Time', 'credentials': 'Credentials', 'interact': 'Interaction',
-    'prettytable': 'Prettytable', 'system': 'System', 'config': 'Config',
-    'health': 'Health', 'power': 'Power', 'rauc': 'RAUC',
-    'clock': 'Clock', 'resources': 'Resources', 'zram': 'Zram',
-    'fw': 'Firewall', 'sysext': 'Sysext', 'confext': 'Confext',
-    'core': 'Core', 'import': 'Import', 'logging': 'Logging',
-    'exit': 'Exit', 'debug': 'Debug', 'sanity': 'Sanity',
+    "var": "Variables",
+    "string": "Strings",
+    "array": "Arrays",
+    "arguments": "Arguments",
+    "fs": "Filesystem",
+    "files": "Files",
+    "net": "Network",
+    "wifi": "WiFi",
+    "ssh": "SSH",
+    "ssl": "SSL",
+    "proc": "Process",
+    "depends": "Dependencies",
+    "cache": "Cache",
+    "time": "Time",
+    "credentials": "Credentials",
+    "interact": "Interaction",
+    "prettytable": "Prettytable",
+    "system": "System",
+    "config": "Config",
+    "health": "Health",
+    "power": "Power",
+    "rauc": "RAUC",
+    "clock": "Clock",
+    "resources": "Resources",
+    "zram": "Zram",
+    "fw": "Firewall",
+    "sysext": "Sysext",
+    "confext": "Confext",
+    "core": "Core",
+    "import": "Import",
+    "logging": "Logging",
+    "exit": "Exit",
+    "debug": "Debug",
+    "sanity": "Sanity",
 }
 
 
 def patch_nav(toml_path: Path, module_names: list[str], has_commands: bool) -> None:
     content = toml_path.read_text()
 
-    if 'index.md' in content:
-        print('zensical.toml: nav entries already present — skipping patch')
+    if "index.md" in content:
+        print("zensical.toml: nav entries already present — skipping patch")
+
         return
 
     lines: list[str] = []
     lines.append('  { "Framework" = [')
     lines.append('    { "Overview" = "index.md" },')
+
     if has_commands:
         lines.append('    { "Commands" = "commands.md" },')
     lines.append('    { "Reference" = [')
 
     ordered = [n for n in _NAV_ORDER if n in module_names]
     ordered += [n for n in module_names if n not in ordered]
+
     for name in ordered:
         label = _NAV_LABELS.get(name, name.title())
         lines.append(f'      {{ "{label}" = "{name}.md" }},')
 
-    lines.append('    ]},')
-    lines.append('  ]},')
+    lines.append("    ]},")
+    lines.append("  ]},")
 
-    nav_block = '\n'.join(lines)
+    nav_block = "\n".join(lines)
     content = content.replace(
-        ']\n\n[project.theme]',
-        f'{nav_block}\n]\n\n[project.theme]'
+        "]\n\n[project.theme]", f"{nav_block}\n]\n\n[project.theme]"
     )
     toml_path.write_text(content)
-    print(f'zensical.toml: added nav entries ({len(ordered)} reference modules)')
+    print(f"zensical.toml: added nav entries ({len(ordered)} reference modules)")
 
 
 # ─── Main ─────────────────────────────────────────────────────────────────────
 
+
 def main() -> int:
     parser = argparse.ArgumentParser(
-        description='Generate framework API reference docs from bash source'
+        description="Generate framework API reference docs from bash source"
     )
-    parser.add_argument('--output-dir', default='docs',
-                        help='Directory to write generated .md files (default: docs)')
-    parser.add_argument('--update-nav', action='store_true',
-                        help='Patch zensical.toml nav section automatically')
-    parser.add_argument('--dry-run', action='store_true',
-                        help="Print what would be generated, don't write files")
-    parser.add_argument('--builder-url', default='https://docs.offline-lab.com/builder/',
-                        help='URL to cross-reference the builder docs from the index page')
-    parser.add_argument('--source-prefix', default=None,
-                        help='Path prefix for source file references in docs (default: library/)')
+    parser.add_argument(
+        "--output-dir",
+        default="docs",
+        help="Directory to write generated .md files (default: docs)",
+    )
+    parser.add_argument(
+        "--update-nav",
+        action="store_true",
+        help="Patch zensical.toml nav section automatically",
+    )
+    parser.add_argument(
+        "--dry-run",
+        action="store_true",
+        help="Print what would be generated, don't write files",
+    )
+    parser.add_argument(
+        "--builder-url",
+        default="https://offline-lab.com/docs/",
+        help="URL to cross-reference the builder docs from the index page",
+    )
+    parser.add_argument(
+        "--source-prefix",
+        default=None,
+        help="Path prefix for source file references in docs (default: library/)",
+    )
     args = parser.parse_args()
 
     repo_root = Path(__file__).parent.parent
-    library_dir = repo_root / 'src' / 'library'
-    bin_dir = repo_root / 'src' / 'bin'
+    library_dir = repo_root / "src" / "library"
+    bin_dir = repo_root / "src" / "bin"
     output_dir = Path(args.output_dir)
+
     if not output_dir.is_absolute():
         output_dir = Path.cwd() / args.output_dir
-    toml_path = repo_root / 'zensical.toml'
+    toml_path = repo_root / "zensical.toml"
 
-    source_prefix = args.source_prefix if args.source_prefix is not None else 'src/library/'
+    source_prefix = (
+        args.source_prefix if args.source_prefix is not None else "src/library/"
+    )
 
     if not library_dir.is_dir():
-        print(f'ERROR: {library_dir} not found', file=sys.stderr)
+        print(f"ERROR: {library_dir} not found", file=sys.stderr)
+
         return 1
 
     output_dir.mkdir(parents=True, exist_ok=True)
 
     modules: list[Module] = []
-    for sh_file in sorted(library_dir.glob('*.sh')):
+
+    for sh_file in sorted(library_dir.glob("*.sh")):
         module = parse_library_file(sh_file)
         modules.append(module)
-        print(f'  parsed {sh_file.name}: {len(module.functions)} functions')
+        print(f"  parsed {sh_file.name}: {len(module.functions)} functions")
 
     commands: list[Command] = []
+
     if bin_dir.is_dir():
-        for cmd_file in sorted(bin_dir.glob('boxctl-*')):
+        for cmd_file in sorted(bin_dir.glob("boxctl-*")):
             cmd = parse_command_script(cmd_file)
+
             if cmd:
                 commands.append(cmd)
-                print(f'  parsed {cmd_file.name}')
+                print(f"  parsed {cmd_file.name}")
 
     for module in modules:
-        out_path = output_dir / f'{module.name}.md'
+        out_path = output_dir / f"{module.name}.md"
         content = render_module(module, source_prefix=source_prefix)
+
         if args.dry_run:
-            print(f'  [dry-run] would write {out_path}')
+            print(f"  [dry-run] would write {out_path}")
         else:
             out_path.write_text(content)
-            print(f'  wrote {out_path.name}')
+            print(f"  wrote {out_path.name}")
 
     if commands:
         # Overview page (quick reference with table + all usage blocks)
-        cmd_path = output_dir / 'commands.md'
+        cmd_path = output_dir / "commands.md"
         content = render_commands(commands)
+
         if args.dry_run:
-            print(f'  [dry-run] would write {cmd_path}')
+            print(f"  [dry-run] would write {cmd_path}")
         else:
             cmd_path.write_text(content)
-            print(f'  wrote {cmd_path.name}')
+            print(f"  wrote {cmd_path.name}")
 
         # Per-command pages in docs/boxctl/
-        boxctl_dir = output_dir / 'boxctl'
+        boxctl_dir = output_dir / "boxctl"
+
         if not args.dry_run:
             boxctl_dir.mkdir(exist_ok=True)
+
         for cmd in commands:
-            out_path = boxctl_dir / f'{cmd.name}.md'
+            out_path = boxctl_dir / f"{cmd.name}.md"
             content = render_command_page(cmd)
+
             if args.dry_run:
-                print(f'  [dry-run] would write {out_path}')
+                print(f"  [dry-run] would write {out_path}")
             else:
                 out_path.write_text(content)
-                print(f'  wrote boxctl/{cmd.name}.md')
+                print(f"  wrote boxctl/{cmd.name}.md")
 
-    idx_path = output_dir / 'index.md'
+    idx_path = output_dir / "index.md"
     content = render_index(modules, commands, builder_url=args.builder_url)
+
     if args.dry_run:
-        print(f'  [dry-run] would write {idx_path}')
+        print(f"  [dry-run] would write {idx_path}")
     else:
         idx_path.write_text(content)
-        print(f'  wrote {idx_path.name}')
+        print(f"  wrote {idx_path.name}")
 
     if args.update_nav and not args.dry_run:
         if toml_path.exists():
             module_names = [m.name for m in modules]
             patch_nav(toml_path, module_names, bool(commands))
         else:
-            print(f'WARNING: {toml_path} not found — skipping nav patch')
+            print(f"WARNING: {toml_path} not found — skipping nav patch")
 
     total = len(modules) + (len(commands) + 1 if commands else 0) + 1
-    print(f'\nDone — generated {total} pages in {output_dir}/')
+    print(f"\nDone — generated {total} pages in {output_dir}/")
+
     if not args.update_nav:
-        print('Run with --update-nav to add entries to zensical.toml automatically.')
+        print("Run with --update-nav to add entries to zensical.toml automatically.")
 
     return 0
 
 
-if __name__ == '__main__':
+if __name__ == "__main__":
     sys.exit(main())
