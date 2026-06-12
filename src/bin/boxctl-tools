@@ -6,13 +6,13 @@ set -euo pipefail
 source framework || exit 1
 
 ## Print help output
-function tools::usage() {
+function boxctl_tools::usage() {
     cat <<EOF
 
-    Browse utils in ~/bin/
+    Browse utils in framework
 
-    This script prints a nice overview of all ~/bin scripts
-    using fzf with preview.
+    This script prints a nice overview
+    of all framework scripts using fzf with preview.
 
     ${FRAMEWORK_SCRIPT_NAME:-${0}} [-h|--help]
 
@@ -28,7 +28,7 @@ EOF
     exit 0
 }
 
-function tools::main() {
+function boxctl_tools::main() {
     if ! depends::check_list fzf find; then
         exit::error "${FUNCNAME[0]}: This tool depends on fzf and find"
     fi
@@ -38,7 +38,7 @@ function tools::main() {
     while [[ "${1:-}" != "" ]]; do
         case "${1}" in
         -h | --help)
-            tools::usage
+            boxctl_tools::usage
             ;;
 
         -d | --dir | --directory)
@@ -47,7 +47,7 @@ function tools::main() {
             ;;
 
         *)
-            tools::usage
+            boxctl_tools::usage
             ;;
         esac
 
@@ -57,7 +57,7 @@ function tools::main() {
     if [[ "${#directories[@]}" -lt 1 ]]; then
         directories+=(
             "${HOME}/bin/"
-            "/usr/lib/framework"
+            "/usr/lib/framework/bin"
         )
     fi
 
@@ -76,4 +76,4 @@ function tools::main() {
         fzf --preview "command {} -h" >/dev/null
 }
 
-tools::main "${@}"
+boxctl_tools::main "${@}"
